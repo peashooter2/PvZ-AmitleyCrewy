@@ -19,6 +19,8 @@
  * along with PvZ-Portable. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <climits>
+
 #include "Plant.h"
 #include "Board.h"
 #include "../ConstEnums.h"
@@ -30,6 +32,8 @@
 #include "Projectile.h"
 #include "../LawnApp.h"
 #include "../Resources.h"
+#include "System/PlayerInfo.h"
+#include "System/Zombatar.h"
 #include "System/Music.h"
 #include "Widget/AchievementsScreen.h"
 #include "Widget/AlmanacDialog.h"
@@ -40,7 +44,10 @@
 #include "../Sexy.TodLib/Attachment.h"
 #include "../Sexy.TodLib/TodParticle.h"
 
-#include <climits>
+static std::string ZombatarTrackName(const char* thePrefix, int theIndex)
+{
+    return Sexy::StrFormat("%s%02d", thePrefix, theIndex);
+}
 
 constinit const ZombieDefinition gZombieDefs[NUM_ZOMBIE_TYPES] = {
     { .mZombieType = ZOMBIE_NORMAL, .mReanimationType = REANIM_ZOMBIE, .mZombieValue = 1, .mStartingLevel = 1, .mFirstAllowedWave = 1, .mPickWeight = 4000, .mZombieName = "ZOMBIE" },
@@ -110,6 +117,18 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
 {
     TOD_ASSERT(theType >= 0 && theType <= ZombieType::NUM_ZOMBIE_TYPES);
 
+    int aZombatarRecordIndex = -1;
+    if (theType == ZombieType::ZOMBIE_FLAG && mBoard)
+    {
+        PlayerInfo* aPlayerInfo = mApp->mPlayerInfo;
+        if (aPlayerInfo && !aPlayerInfo->mZombatarData.empty())
+        {
+            int aCount = static_cast<int>(aPlayerInfo->mZombatarData.size() / ZOMBATAR_RECORD_SIZE);
+            if (aCount > 0)
+                aZombatarRecordIndex = Rand(aCount);
+        }
+    }
+
     mFromWave = theFromWave;
     mRow = theRow;
     mPosX = 780 + Rand(ZOMBIE_START_RANDOM_OFFSET);
@@ -178,6 +197,7 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
     mFireballRow = -1;
     mIsFireBall = false;
     mMoweredReanimID = ReanimationID::REANIMATIONID_NULL;
+    mZombatarHeadReanimID = ReanimationID::REANIMATIONID_NULL;
     mLastPortalX = -1;
     for (int i = 0; i < MAX_ZOMBIE_FOLLOWERS; i++)
     {
@@ -535,8 +555,6 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
     {
         mHasObject = true;
         LoadPlainZombieReanim();
-        ReanimShowPrefix("anim_bucket", RENDER_GROUP_NORMAL);
-        ReanimShowPrefix("anim_hair", RENDER_GROUP_HIDDEN);
 
         Reanimation* aBodyReanim = mApp->ReanimationGet(mBodyReanimID);
         Reanimation* aFlagReanim = mApp->AddReanimation(0.0f, 0.0f, 0, ReanimationType::REANIM_FLAG);
@@ -545,9 +563,8 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
         ReanimatorTrackInstance* aTrackInstance = aBodyReanim->GetTrackInstanceByName("Zombie_flaghand");
         AttachReanim(aTrackInstance->mAttachmentID, aFlagReanim, 0.0f, 0.0f);
         aBodyReanim->mFrameBasePose = 0;
-        mHelmType = HelmType::HELMTYPE_PAIL;
-        mHelmHealth = 1100;
-        mBodyHealth = 820;
+        mBodyHealth = 1920;
+        SetupZombatarFlagReanim(aZombatarRecordIndex);
 
         mPosX = WIDE_BOARD_WIDTH;
         break;
@@ -683,11 +700,11 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
         aBodyReanim->mFrameBasePose = 0;
         TodScaleRotateTransformMatrix(aAttachEffect->mOffset, 65.0f, -5.0f, 0.2f, -1.0f, 1.0f);
 
-        mPhaseCounter = 150;
-        mVariant = false;
         mShieldType = ShieldType::SHIELDTYPE_DOOR;
         mShieldHealth = 1100;
         AttachShield();
+        mPhaseCounter = 150;
+        mVariant = false;
         break;
     }
     
@@ -761,10 +778,10 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
 
         mVariant = false;
         mBodyHealth = 500;
-        int aDistance = 275 + Rand(175);
-        mPhaseCounter = static_cast<int>(aDistance / mVelX) * ZOMBIE_LIMP_SPEED_FACTOR;
         mHelmType = HelmType::HELMTYPE_TRAFFIC_CONE;
         mHelmHealth = 370;
+        int aDistance = 275 + Rand(175);
+        mPhaseCounter = static_cast<int>(aDistance / mVelX) * ZOMBIE_LIMP_SPEED_FACTOR;
         break;
     }
 
@@ -790,10 +807,10 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
         aBodyReanim->mFrameBasePose = 0;
         TodScaleRotateTransformMatrix(aAttachEffect->mOffset, 65.0f, -5.0f, 0.2f, -1.0f, 1.0f);
 
-        mPhaseCounter = 150;
-        mVariant = false;
         mHelmType = HelmType::HELMTYPE_PAIL;
         mHelmHealth = 1100;
+        mPhaseCounter = 150;
+        mVariant = false;
         break;
     }
 
@@ -819,13 +836,13 @@ void Zombie::ZombieInitialize(int theRow, ZombieType theType, bool theVariant, Z
         aBodyReanim->mFrameBasePose = 0;
         TodScaleRotateTransformMatrix(aAttachEffect->mOffset, 55.0f, -15.0f, 0.2f, -0.75f, 0.75f);
 
-        mZombiePhase = ZombiePhase::PHASE_SQUASH_PRE_LAUNCH;
-        mVariant = false;
         mHelmType = HelmType::HELMTYPE_PAIL;
         mHelmHealth = 1100;
         mShieldType = ShieldType::SHIELDTYPE_DOOR;
         mShieldHealth = 1100;
         AttachShield();
+        mZombiePhase = ZombiePhase::PHASE_SQUASH_PRE_LAUNCH;
+        mVariant = false;
         break;
     }
     case ZombieType::ZOMBIE_CACHED_POLEVAULTER_WITH_POLE:
@@ -3358,6 +3375,89 @@ void Zombie::DropFlag()
     TodParticleSystem* aParticle = mApp->AddTodParticle(aFlagPosX + 6.0f, aFlagPosY - 45.0f, mRenderOrder + 1, ParticleEffect::PARTICLE_ZOMBIE_FLAG);
     OverrideParticleColor(aParticle);
     OverrideParticleScale(aParticle);
+}
+
+void Zombie::ApplyZombatarHead(const unsigned char* theRecord)
+{
+    Reanimation* aBodyReanim = mApp->ReanimationTryToGet(mBodyReanimID);
+    if (!aBodyReanim)
+        return;
+
+    ReanimatorTrackInstance* aTrackInstance = aBodyReanim->GetTrackInstanceByName("anim_head1");
+    aTrackInstance->mImageOverride = IMAGE_BLANK;
+    aBodyReanim->AssignRenderGroupToPrefix("anim_head2", RENDER_GROUP_HIDDEN);
+    aBodyReanim->AssignRenderGroupToPrefix("anim_hair", RENDER_GROUP_HIDDEN);
+    aBodyReanim->mFrameBasePose = 0;
+
+    Reanimation* aHeadReanim = mApp->ReanimationTryToGet(mZombatarHeadReanimID);
+    if (!aHeadReanim)
+    {
+        aHeadReanim = mApp->AddReanimation(0.0f, 0.0f, 0, ReanimationType::REANIM_ZOMBATAR_HEAD);
+        aHeadReanim->PlayReanim("anim_head_idle", ReanimLoopType::REANIM_LOOP, 0, 15.0f);
+        mZombatarHeadReanimID = mApp->ReanimationGetID(aHeadReanim);
+        AttachEffect* aAttachEffect = AttachReanim(aTrackInstance->mAttachmentID, aHeadReanim, 0.0f, 0.0f);
+        TodScaleRotateTransformMatrix(aAttachEffect->mOffset, -20.0f, -1.0f, 0.2f, 1.0f, 1.0f);
+    }
+
+    aHeadReanim->AssignRenderGroupToTrack("anim_hair", RENDER_GROUP_HIDDEN);
+    aHeadReanim->AssignRenderGroupToPrefix("hats_", RENDER_GROUP_HIDDEN);
+    aHeadReanim->AssignRenderGroupToPrefix("hair_", RENDER_GROUP_HIDDEN);
+    aHeadReanim->AssignRenderGroupToPrefix("facialHair_", RENDER_GROUP_HIDDEN);
+    aHeadReanim->AssignRenderGroupToPrefix("accessories_", RENDER_GROUP_HIDDEN);
+    aHeadReanim->AssignRenderGroupToPrefix("eyeWear_", RENDER_GROUP_HIDDEN);
+    aHeadReanim->AssignRenderGroupToPrefix("tidBits_", RENDER_GROUP_HIDDEN);
+
+    struct RuntimePart
+    {
+        int mPartSlot;
+        int mColorSlot;
+        int mMaxCount;
+        const char* mPrefix;
+        bool mRemapAccessory;
+        bool mCompactTrackRange;
+    };
+
+    static constexpr RuntimePart aRuntimeParts[] =
+    {
+        { ZOMBATAR_SLOT_HATS, ZOMBATAR_SLOT_HATS_COLOR, 14, "hats_", false, false },
+        { ZOMBATAR_SLOT_HAIR, ZOMBATAR_SLOT_HAIR_COLOR, 16, "hair_", false, false },
+        { ZOMBATAR_SLOT_TIDBITS, ZOMBATAR_SLOT_TIDBITS_COLOR, 14, "tidBits_", false, false },
+        { ZOMBATAR_SLOT_EYEWEAR, ZOMBATAR_SLOT_EYEWEAR_COLOR, 16, "eyeWear_", false, false },
+        { ZOMBATAR_SLOT_ACCESSORY, ZOMBATAR_SLOT_ACCESSORY_COLOR, 15, "accessories_", true, false },
+        { ZOMBATAR_SLOT_FACIAL_HAIR, ZOMBATAR_SLOT_FACIAL_HAIR_COLOR, 25, "facialHair_", false, true }
+    };
+
+    for (const RuntimePart& aPart : aRuntimeParts)
+    {
+        int aPartIndex = ZombatarReadSignedRecordSlot(theRecord, aPart.mPartSlot);
+        if (aPartIndex < 0 || aPartIndex >= aPart.mMaxCount)
+            continue;
+        int aTrackIndex = aPartIndex;
+        if (aPart.mCompactTrackRange && aTrackIndex > 16)
+            aTrackIndex -= aTrackIndex / 17;
+        if (aPart.mRemapAccessory)
+            aTrackIndex = ZombatarRemapAccessoryForRuntime(aTrackIndex);
+        std::string aPrefix = ZombatarTrackName(aPart.mPrefix, aTrackIndex);
+
+        if (!aHeadReanim->TrackExists(aPrefix.c_str()))
+            continue;
+        ReanimatorTrackInstance* aPartTrack = aHeadReanim->GetTrackInstanceByName(aPrefix.c_str());
+        aHeadReanim->AssignRenderGroupToPrefix(aPrefix.c_str(), RENDER_GROUP_NORMAL);
+        aPartTrack->mTrackColor = ZombatarGetColor(ZombatarReadSignedRecordSlot(theRecord, aPart.mColorSlot));
+    }
+}
+
+void Zombie::SetupZombatarFlagReanim(int theRecordIndex)
+{
+    if (theRecordIndex < 0)
+        return;
+
+    PlayerInfo* aPlayerInfo = mApp->mPlayerInfo;
+    if (!aPlayerInfo || aPlayerInfo->mZombatarData.empty())
+        return;
+
+    const unsigned char* aRecord = aPlayerInfo->mZombatarData.data() + static_cast<size_t>(theRecordIndex) * ZOMBATAR_RECORD_SIZE;
+    ApplyZombatarHead(aRecord);
 }
 
 void Zombie::DropPole()
@@ -6359,7 +6459,7 @@ Zombie* Zombie::FindZombieTarget()
         {
             Rect aZombieRect = aZombie->GetZombieRect();
             int aOverlap = GetRectOverlap(aAttackRect, aZombieRect);
-            if (aOverlap >= 20 || (aOverlap > 0 && aZombie->mIsEating))
+            if (aOverlap >= 20 || (aOverlap >= 0 && aZombie->mIsEating))
             {
                 return aZombie;
             }
@@ -6885,7 +6985,6 @@ void Zombie::StartMindControlled()
     if (mZombieType == ZombieType::ZOMBIE_DANCER)
     {
         ReportAchievement::GiveAchievement(mApp, DiscoIsUndead, false);
-        
         for (int i = 0; i < NUM_BACKUP_DANCERS; i++)
         {
             mFollowerZombieID[i] = ZombieID::ZOMBIEID_NULL;
@@ -7320,6 +7419,7 @@ void Zombie::DieNoLoot()
     mApp->RemoveReanimation(mBodyReanimID);
     mApp->RemoveReanimation(mMoweredReanimID);
     mApp->RemoveReanimation(mSpecialHeadReanimID);
+    mApp->RemoveReanimation(mZombatarHeadReanimID);
 
     mDead = true;
     TrySpawnLevelAward();
@@ -7374,7 +7474,7 @@ void Zombie::StopZombieSound()
 {
     if (mZombieType == ZombieType::ZOMBIE_DANCER || mZombieType == ZombieType::ZOMBIE_BACKUP_DANCER)
     {
-        bool aStopSound = false;
+        bool aStopSound = true;
 
         if (mBoard)
         {
@@ -7384,7 +7484,7 @@ void Zombie::StopZombieSound()
                 if (aZombie->mHasHead && !aZombie->IsDeadOrDying() && aZombie->IsOnBoard() && 
                     (aZombie->mZombieType == ZombieType::ZOMBIE_DANCER || aZombie->mZombieType == ZombieType::ZOMBIE_BACKUP_DANCER))
                 {
-                    aStopSound = true;
+                    aStopSound = false;
                     break;
                 }
             }

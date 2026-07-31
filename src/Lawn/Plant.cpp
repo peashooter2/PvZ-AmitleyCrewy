@@ -97,6 +97,7 @@ constinit const PlantDefinition gPlantDefs[SeedType::NUM_SEED_TYPES] = {
     { .mSeedType = SeedType::SEED_GIANT_WALLNUT,     .mPlantImage = nullptr, .mReanimationType = ReanimationType::REANIM_WALLNUT,       .mPacketIndex = 2,  .mSeedCost = 0,   .mRefreshTime = 3000,   .mSubClass = PlantSubClass::SUBCLASS_NORMAL,  .mLaunchRate = 0,    .mPlantName = "GIANT_WALLNUT" },
     { .mSeedType = SeedType::SEED_SPROUT,            .mPlantImage = nullptr, .mReanimationType = ReanimationType::REANIM_ZENGARDEN_SPROUT, .mPacketIndex = 33, .mSeedCost = 0,   .mRefreshTime = 3000,   .mSubClass = PlantSubClass::SUBCLASS_NORMAL,  .mLaunchRate = 0,    .mPlantName = "SPROUT" },
     { .mSeedType = SeedType::SEED_LEFTPEATER,        .mPlantImage = nullptr, .mReanimationType = ReanimationType::REANIM_REPEATER,      .mPacketIndex = 5,  .mSeedCost = 200, .mRefreshTime = 750,    .mSubClass = PlantSubClass::SUBCLASS_SHOOTER, .mLaunchRate = 150,  .mPlantName = "REPEATER" }
+
 };
 
 Plant::Plant()
@@ -879,7 +880,7 @@ bool Plant::FindStarFruitTarget()
             else
             {
                 if (aZombie->mZombieType == ZombieType::ZOMBIE_DIGGER)
-                    aZombieRect.mX += 10;
+                    aZombieRect.mWidth += 10;
 
                 float aProjectileTime = Distance2D(aCenterStarX, aCenterStarY, aZombieRect.mX + aZombieRect.mWidth / 2, aZombieRect.mY + aZombieRect.mHeight / 2) / 3.33f;
                 int aZombieHitX = aZombie->ZombieTargetLeadX(aProjectileTime) - aZombieRect.mWidth / 2;
@@ -1287,7 +1288,7 @@ void Plant::UpdateSpikeweed()
         }
         else if (mSeedType == SeedType::SEED_SPIKEROCK)
         {
-            if (mStateCountdown == 69 || mStateCountdown == 33)
+            if (mStateCountdown == 70 || mStateCountdown == 32)
             {
                 DoRowAreaDamage(20, 33U);
             }
@@ -1767,7 +1768,7 @@ void Plant::UpdateChomper()
             if (aZombie)
             {
                 if (aZombie->mZombieType == ZombieType::ZOMBIE_GARGANTUAR || aZombie->mZombieType == ZombieType::ZOMBIE_REDEYE_GARGANTUAR || 
-                    aZombie->mZombieType == ZombieType::ZOMBIE_BOSS || aZombie->mZombieType == ZombieType::ZOMBIE_FLAG)
+                    aZombie->mZombieType == ZombieType::ZOMBIE_BOSS)
                 {
                     doBite = true;
                 }
@@ -4494,28 +4495,28 @@ void Plant::Fire(Zombie* theTargetZombie, int theRow, PlantWeapon thePlantWeapon
     ProjectileType aProjectileType;
     switch (mSeedType)
     {
-    case SeedType::SEED_PEASHOOTER:
-     {
-      static const ProjectileType kPeashooterRandomProjectileTypes[6] = {
-        ProjectileType::PROJECTILE_PEA,
-        ProjectileType::PROJECTILE_SNOWPEA,
-        ProjectileType::PROJECTILE_MELON,
-        ProjectileType::PROJECTILE_WINTERMELON,
-        ProjectileType::PROJECTILE_STAR,
-        ProjectileType::PROJECTILE_BASKETBALL,
-      };
-        aProjectileType = kPeashooterRandomProjectileTypes[Sexy::Rand(6)];
-        break;
-     }
-    case SeedType::SEED_REPEATER:
-    {
-     static const ProjectileType kRepeaterRandomProjectileTypes[6] = {
-        ProjectileType::PROJECTILE_PEA,
-        ProjectileType::PROJECTILE_STAR,
-     };
-        aProjectileType = kRepeaterRandomProjectileTypes[Sexy::Rand(2)];
-        break;
-    }
+        case SeedType::SEED_PEASHOOTER:
+        {
+            static const ProjectileType kPeashooterRandomProjectileTypes[6] = {
+                ProjectileType::PROJECTILE_PEA,
+                ProjectileType::PROJECTILE_SNOWPEA,
+                ProjectileType::PROJECTILE_MELON,
+                ProjectileType::PROJECTILE_WINTERMELON,
+                ProjectileType::PROJECTILE_STAR,
+                ProjectileType::PROJECTILE_BASKETBALL,
+            };
+            aProjectileType = kPeashooterRandomProjectileTypes[Sexy::Rand(6)];
+            break;
+        }
+        case SeedType::SEED_REPEATER:
+        {
+            static const ProjectileType kRepeaterRandomProjectileTypes[6] = {
+                ProjectileType::PROJECTILE_PEA,
+                ProjectileType::PROJECTILE_STAR,
+            };
+            aProjectileType = kRepeaterRandomProjectileTypes[Sexy::Rand(2)];
+            break;
+        }
     case SeedType::SEED_THREEPEATER:
     case SeedType::SEED_SPLITPEA:
     case SeedType::SEED_GATLINGPEA:

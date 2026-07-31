@@ -83,7 +83,7 @@ void Projectile::ProjectileInitialize(int theX, int theY, int theRenderOrder, in
 	mCobTargetRow = 0;
 	mTargetZombieID = ZombieID::ZOMBIEID_NULL;
 	mOnHighGround = mBoard->mGridSquareType[aGridX][theRow] == GridSquareType::GRIDSQUARE_HIGH_GROUND;
-	if (mBoard->StageHasRoof())
+	if (mBoard->StageHasRoof() && theX < 480)
 	{
 		mShadowY -= 12.0f;
 	}
@@ -232,7 +232,7 @@ Zombie* Projectile::FindCollisionTarget()
 	{
 		if ((aZombie->mZombieType == ZombieType::ZOMBIE_BOSS || aZombie->mRow == mRow) && aZombie->EffectedByDamage(static_cast<unsigned int>(mDamageRangeFlags)))
 		{
-			if (aZombie->mZombiePhase == ZombiePhase::PHASE_SNORKEL_WALKING_IN_POOL && mPosZ >= 45.0f)
+			if (aZombie->mZombiePhase == ZombiePhase::PHASE_SNORKEL_WALKING_IN_POOL && mPosZ <= 45.0f)
 			{
 				continue;
 			}
@@ -242,16 +242,16 @@ Zombie* Projectile::FindCollisionTarget()
 				continue;
 			}
 
-// 新增：跳过刚被命中的僵尸（防止同帧/连续帧重复命中）  
-   if (mProjectileType == ProjectileType::PROJECTILE_STAR &&  
-       mTargetZombieID != ZombieID::ZOMBIEID_NULL &&  
-       mBoard->ZombieGetID(aZombie) == mTargetZombieID)  
-        {  
-             continue;  
-        }
+			// 新增：跳过刚被命中的僵尸（防止同帧/连续帧重复命中）
+			if (mProjectileType == ProjectileType::PROJECTILE_STAR &&
+				mTargetZombieID != ZombieID::ZOMBIEID_NULL &&
+				mBoard->ZombieGetID(aZombie) == mTargetZombieID)
+			{
+				continue;
+			}
 
 			Rect aZombieRect = aZombie->GetZombieRect();
-			if (GetRectOverlap(aProjectileRect, aZombieRect) > 0)
+			if (GetRectOverlap(aProjectileRect, aZombieRect) >= 0)
 			{
 				if (aBestZombie == nullptr || aZombie->mX < aMinX)
 				{
@@ -294,7 +294,7 @@ void Projectile::CheckForCollision()
 		return;
 	}
 
-	if (mProjectileType == ProjectileType::PROJECTILE_STAR && (mPosY > 600.0f || mPosY < 0.0f))
+	if (mProjectileType == ProjectileType::PROJECTILE_STAR && (mPosY > 600.0f || mPosY < 40.0f))
 	{
 		Die();
 		return;
@@ -348,8 +348,7 @@ bool Projectile::CantHitHighGround()
 		mProjectileType == ProjectileType::PROJECTILE_SNOWPEA ||
 		mProjectileType == ProjectileType::PROJECTILE_STAR ||
 		mProjectileType == ProjectileType::PROJECTILE_PUFF ||
-		mProjectileType == ProjectileType::PROJECTILE_FIREBALL ||
-		mProjectileType == ProjectileType::PROJECTILE_STAR
+		mProjectileType == ProjectileType::PROJECTILE_FIREBALL
 		) && !mOnHighGround;
 }
 
@@ -400,7 +399,8 @@ bool Projectile::IsSplashDamage(Zombie* theZombie)
 	return
 		mProjectileType == ProjectileType::PROJECTILE_MELON ||
 		mProjectileType == ProjectileType::PROJECTILE_WINTERMELON ||
-		mProjectileType == ProjectileType::PROJECTILE_FIREBALL;
+		mProjectileType == ProjectileType::PROJECTILE_FIREBALL ||
+		mProjectileType == ProjectileType::PROJECTILE_STAR;
 }
 
 unsigned int Projectile::GetDamageFlags(Zombie* theZombie)
@@ -415,7 +415,7 @@ unsigned int Projectile::GetDamageFlags(Zombie* theZombie)
 	{
 		SetBit(aDamageFlags, static_cast<int>(DamageFlags::DAMAGE_BYPASSES_SHIELD), true);
 	}
-	else if (mMotionType == ProjectileMotion::MOTION_STAR && mVelX <= 0.0f)
+	else if (mMotionType == ProjectileMotion::MOTION_STAR && mVelX < 0.0f)
 	{
 		SetBit(aDamageFlags, static_cast<int>(DamageFlags::DAMAGE_BYPASSES_SHIELD), true);
 	}
@@ -482,10 +482,6 @@ void Projectile::DoSplashDamage(Zombie* theZombie)
 	if (mProjectileType == ProjectileType::PROJECTILE_FIREBALL)
 	{
 		aMaxSplashDamageAmount = aOriginalDamage;
-	}
-	else if (mProjectileType == ProjectileType::PROJECTILE_STAR)
-	{
-		aMaxSplashDamageAmount = 2 * aOriginalDamage;
 	}
 	int aSplashDamageAmount = aSplashDamage * aZombiesGetSplashed;
 	if (aSplashDamageAmount > aMaxSplashDamageAmount)
@@ -943,16 +939,15 @@ void Projectile::DoImpact(Zombie* theZombie)
 		}
 	}
 
-   if (mProjectileType == ProjectileType::PROJECTILE_STAR && theZombie != nullptr)  
-     {  
-    mTargetZombieID = mBoard->ZombieGetID(theZombie);  // 记录刚命中的僵尸  
-    // 不调用 Die()，星星继续飞行  
-     }  
-   else  
-    {  
-    Die();  
-    }
-
+	if (mProjectileType == ProjectileType::PROJECTILE_STAR && theZombie != nullptr)
+	{
+		mTargetZombieID = mBoard->ZombieGetID(theZombie);  // 记录刚命中的僵尸
+		// 不调用 Die()，星星继续飞行
+	}
+	else
+	{
+		Die();
+	}
 }
 
 void Projectile::Update()
