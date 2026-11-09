@@ -130,8 +130,8 @@ void PlayerInfo::SyncDetails(DataSync& theSync)
 		PottedPlantFromLE(mPottedPlant[i]);
 	}
 
-	// achievements are stored as 21 x 16-bit values (0/1): https://plantsvszombies.fandom.com/wiki/User_file_format
-	for (int i = 0; i < 21; i++)
+	// achievements are stored as 20 x 16-bit values (0/1): https://plantsvszombies.fandom.com/wiki/User_file_format
+	for (int i = 0; i < 20; i++)
 	{
 		uint16_t aAchievementValue = mEarnedAchievements[i] ? 1 : 0;
 		theSync.SyncUInt16(aAchievementValue);

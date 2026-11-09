@@ -99,8 +99,8 @@ public:
 	int32_t             mPlaceHolderPlayerStats;            //+0x??????
 	int32_t             mNumPottedPlants;                   //+0x350
 	PottedPlant         mPottedPlant[MAX_POTTED_PLANTS];    //+0x358
-	bool                mEarnedAchievements[21];            //+0x24
-	bool                mShownAchievements[21];
+	bool                mEarnedAchievements[20];            //+0x24
+	bool                mShownAchievements[20];
 	uint8_t             mZombatarAccepted;                  //+0x28
 	uint32_t            mZombatarHeadCount;                 //+0x29
 	std::vector<uint8_t> mZombatarData;                     // raw 0x48 * count
